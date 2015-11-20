@@ -1,5 +1,6 @@
 {
     "require": {
-        "symfony/class-loader": "^2.7"
+        "symfony/class-loader": "^2.7",
+        "phpunit/phpunit": "5.0.9"
     }
 }

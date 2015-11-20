@@ -11,7 +11,12 @@ namespace DawidDominiak\Sudoku\App\Values;
 
 class Grid
 {
-    private $value = null;
+    private $value;
+
+    public function __construct($value = null)
+    {
+        $this->value = $value;
+    }
 
     /**
      * @return number
@@ -26,9 +31,14 @@ class Grid
      */
     public function setValue($value)
     {
-        if($value != null)
-        {
-            $this->value = $value;
-        }
+        $this->value = $value;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isEmpty()
+    {
+        return !$this->value;
     }
 }
