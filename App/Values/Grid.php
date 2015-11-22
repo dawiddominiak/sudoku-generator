@@ -12,6 +12,7 @@ namespace DawidDominiak\Sudoku\App\Values;
 class Grid
 {
     private $value;
+    private $possibleValues = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
     public function __construct($value = null)
     {
@@ -40,5 +41,24 @@ class Grid
     public function isEmpty()
     {
         return !$this->value;
+    }
+
+    public function resetPossibleValues()
+    {
+        $this->possibleValues = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+    }
+
+    public function removePossibleValues($valuesToRemove)
+    {
+        $helperArray = array_diff($this->possibleValues, $valuesToRemove);
+        $this->possibleValues = array_values($helperArray);
+    }
+
+    /**
+     * @return array
+     */
+    public function getPossibleValues()
+    {
+        return $this->possibleValues;
     }
 }

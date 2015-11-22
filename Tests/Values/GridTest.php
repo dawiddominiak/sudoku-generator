@@ -33,4 +33,33 @@ class GridTest extends \PHPUnit_Framework_TestCase
         $this->grid->setValue(5);
         $this->assertFalse($this->grid->isEmpty());
     }
+
+    public function testGetPossibleValues()
+    {
+        $this->assertEquals(
+            [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            $this->grid->getPossibleValues()
+        );
+    }
+
+    public function testRemovePossibleValue()
+    {
+        $this->grid->removePossibleValues([5, 7]);
+
+        $this->assertEquals(
+            [1, 2, 3, 4, 6, 8, 9],
+            $this->grid->getPossibleValues()
+        );
+    }
+
+    public function testResetPossibleValues()
+    {
+        $this->grid->removePossibleValues([5]);
+        $this->grid->resetPossibleValues();
+
+        $this->assertEquals(
+            [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            $this->grid->getPossibleValues()
+        );
+    }
 }

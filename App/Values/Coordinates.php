@@ -27,4 +27,9 @@ class Coordinates
             'y' => $this->y
         ];
     }
+
+    public function __toString()
+    {
+        return 'x: ' . $this->x . ', y: ' . $this->y;
+    }
 }
