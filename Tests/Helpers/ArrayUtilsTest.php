@@ -1,6 +1,8 @@
 <?php
 
-class ArrayUtilsTest extends PHPUnit_Framework_TestCase
+namespace DawidDominiak\Sudoku\Tests\Helpers;
+
+class ArrayUtilsTest extends \PHPUnit_Framework_TestCase
 {
     public function testAreMatrixEqualOfTwoEqualMatrixShouldBeTrue()
     {

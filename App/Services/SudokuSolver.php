@@ -3,6 +3,8 @@
 namespace DawidDominiak\Sudoku\App\Services;
 
 
+use DawidDominiak\Sudoku\App\Helpers\SolutionLeaf;
+use DawidDominiak\Sudoku\App\Helpers\SolutionsTree;
 use DawidDominiak\Sudoku\App\Values\Coordinates;
 use DawidDominiak\Sudoku\App\Values\Plain;
 
@@ -12,6 +14,11 @@ class SudokuSolver
      * @var Plain
      */
     private $plain;
+
+    /**
+     * @var SolutionsTree
+     */
+    private $solutionsTree;
 
     /**
      * @var Plain
@@ -25,6 +32,7 @@ class SudokuSolver
     public function __construct(Plain $plain)
     {
         $this->plain = $plain;
+        $this->solutionsTree = new SolutionsTree();
     }
 
     /**
@@ -35,15 +43,14 @@ class SudokuSolver
         $plain = clone $this->plain;
 
         //TODO: check correct
-        $this->tryFindPartialSolution($plain);
+        $this->tryFindPartialSolution($plain, $this->solutionsTree->getRoot());
 
         return $this->solution;
     }
 
-    private function tryFindPartialSolution(Plain $plain)
+    private function tryFindPartialSolution(Plain $plain, SolutionLeaf $previousLeaf)
     {
-        $plain = $this->updateGridPossibleValues($plain);
-
+        $plain = $this->updateGridPossibleValues($plain, $previousLeaf);
         $gridCoordinates = $this->findCurrentlyBestLocation($plain);
 
         if(!$gridCoordinates)
@@ -54,18 +61,20 @@ class SudokuSolver
         }
 
         $grid = $plain->getGrid($gridCoordinates);
-
         $possibleValues = $grid->getPossibleValues();
 
         foreach($possibleValues as $number)
         {
+            $newLeaf = new SolutionLeaf($gridCoordinates, $number);
+            $previousLeaf->addBranch($newLeaf);
             $grid->setValue($number);
 
-            if($this->tryFindPartialSolution($plain))
+            if($this->tryFindPartialSolution($plain, $newLeaf))
             {
                 return true;
             }
 
+            $previousLeaf->removeBranch($newLeaf);
             $grid->setValue(null);
         }
 
@@ -144,7 +153,19 @@ class SudokuSolver
             !$this->usedInBox($plain, new Coordinates($x - $x%3, $y - $y%3), $number);
     }
 
-    private function updateGridPossibleValues(Plain $plain)
+    private function updateGridPossibleValues(Plain $plain, SolutionLeaf $leaf)
+    {
+        $plain = clone $plain;
+
+        if(get_class($leaf) === 'DawidDominiak\\Sudoku\\App\\Helpers\\SolutionRoot')
+        {
+            return $this->setFirstGridPossibleValues($plain);
+        }
+
+        return $this->fastUpdateGridPossibleValues($plain, $leaf);
+    }
+
+    private function setFirstGridPossibleValues(Plain $plain)
     {
         $plain = clone $plain;
 
@@ -186,13 +207,59 @@ class SudokuSolver
                 $grid->removePossibleValues($valuesInColumns[$x]);
                 $grid->removePossibleValues(
                     $valuesInSquares[
-                        (new Coordinates(
-                            $x - $x%3,
-                            $y - $y%3
-                        ))
-                            ->__toString()
+                    (new Coordinates(
+                        $x - $x%3,
+                        $y - $y%3
+                    ))
+                        ->__toString()
                     ]
                 );
+            }
+        }
+
+        return $plain;
+    }
+
+    private function fastUpdateGridPossibleValues(Plain $plain, SolutionLeaf $leaf)
+    {
+        $plain = clone $plain;
+        $coordinates = $leaf->getCoordinates();
+        $nativeCoordinates = $coordinates->get();
+        $value = $leaf->getValue();
+
+        $currentX = $nativeCoordinates['x'];
+        $currentY = $nativeCoordinates['y'];
+
+        for($x = 0; $x < 9; $x++)
+        {
+            $grid = $plain->getGrid(
+                new Coordinates($x, $currentY)
+            );
+
+            $grid->removePossibleValues([$value]);
+        }
+
+        for($y = 0; $y < 9; $y++)
+        {
+            $grid = $plain->getGrid(
+                new Coordinates($currentX, $y)
+            );
+
+            $grid->removePossibleValues([$value]);
+        }
+
+        $squareX = $currentX - $currentX%3;
+        $squareY = $currentY - $currentY%3;
+
+        for($x = $squareX; $x < $squareX + 3; $x++)
+        {
+            for($y = $squareY; $y < $squareY + 3; $y++)
+            {
+                $grid = $plain->getGrid(
+                    new Coordinates($x, $y)
+                );
+
+                $grid->removePossibleValues([$value]);
             }
         }
 
@@ -300,5 +367,13 @@ class SudokuSolver
             }
         }
         return false;
+    }
+
+    /**
+     * @return SolutionsTree
+     */
+    public function getSolutionsTree()
+    {
+        return $this->solutionsTree;
     }
 }
