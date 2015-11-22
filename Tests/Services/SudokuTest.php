@@ -17,7 +17,7 @@ class SudokuTest extends \PHPUnit_Framework_TestCase
     protected function setUp()
     {
         $solvablePlain = new Plain([
-            [null, null,    4, null,    9,    5,    7, null, null],
+            [null, null,    4, null,    null,    5,    7, null, null],
             [7   , null, null, null, null, null, null,    5, null],
             [null, null,    5, null,    3, null,    4, null,    8],
             [null,    3, null, null, null, null, null, null, null],

@@ -16,7 +16,6 @@ class SolutionLeaf implements EquatableInterface
     private $coordinates;
     private $value;
     private $branches = [];
-    private $parent;
 
     /**
      * SolutionLeaf constructor.

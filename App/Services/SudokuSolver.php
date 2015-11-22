@@ -86,11 +86,13 @@ class SudokuSolver
                 }
                 catch(BadHypothesisException $e)
                 {
-                    continue;
+                    break;
                 }
-
-                $previousLeaf->removeBranch($newLeaf);
-                $grid->setValue(null);
+                finally
+                {
+                    $previousLeaf->removeBranch($newLeaf);
+                    $grid->setValue(null);
+                }
             }
         }
     }
