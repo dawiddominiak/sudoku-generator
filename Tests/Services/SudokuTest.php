@@ -33,8 +33,10 @@ class SudokuTest extends \PHPUnit_Framework_TestCase
 
     public function testFindSolutionOfSolvableSudokuShouldFindSolution()
     {
-        $algorithmSolution = $this->solvableSudoku
-            ->findSolution()
+        $algorithmSolutions = $this->solvableSudoku
+            ->findSolutions();
+
+        $algorithmSolution = $algorithmSolutions[0]
             ->toNative();
 
         $realSolution = [

@@ -3,6 +3,8 @@
 namespace DawidDominiak\Sudoku\App\Services;
 
 
+use DawidDominiak\Sudoku\App\Exceptions\BadHypothesisException;
+use DawidDominiak\Sudoku\App\Exceptions\ManySolutionsException;
 use DawidDominiak\Sudoku\App\Helpers\SolutionLeaf;
 use DawidDominiak\Sudoku\App\Helpers\SolutionsTree;
 use DawidDominiak\Sudoku\App\Values\Coordinates;
@@ -16,14 +18,19 @@ class SudokuSolver
     private $plain;
 
     /**
+     * @var int
+     */
+    private $maxSolutionsCount;
+
+    /**
      * @var SolutionsTree
      */
     private $solutionsTree;
 
     /**
-     * @var Plain
+     * @var array
      */
-    private $solution;
+    private $solutions = [];
 
     /**
      * Sudoku constructor.
@@ -36,16 +43,18 @@ class SudokuSolver
     }
 
     /**
+     * @param int $maxSolutionsCount
      * @return Plain
      */
-    public function findSolution()
+    public function findSolutions($maxSolutionsCount = 1)
     {
         $plain = clone $this->plain;
+        $this->maxSolutionsCount = $maxSolutionsCount;
 
         //TODO: check correct
         $this->tryFindPartialSolution($plain, $this->solutionsTree->getRoot());
 
-        return $this->solution;
+        return $this->solutions;
     }
 
     private function tryFindPartialSolution(Plain $plain, SolutionLeaf $previousLeaf)
@@ -55,35 +64,41 @@ class SudokuSolver
 
         if(!$gridCoordinates)
         {
-            $this->solution = $plain;
-
-            return true;
-        }
-
-        $grid = $plain->getGrid($gridCoordinates);
-        $possibleValues = $grid->getPossibleValues();
-
-        foreach($possibleValues as $number)
-        {
-            $newLeaf = new SolutionLeaf($gridCoordinates, $number);
-            $previousLeaf->addBranch($newLeaf);
-            $grid->setValue($number);
-
-            if($this->tryFindPartialSolution($plain, $newLeaf))
+            if(count($this->solutions) > $this->maxSolutionsCount)
             {
-                return true;
+                throw new ManySolutionsException("There are too many solutions of given sudoku. Max number: " . $this->maxSolutionsCount);
             }
 
-            $previousLeaf->removeBranch($newLeaf);
-            $grid->setValue(null);
-        }
+            array_push($this->solutions, new Plain($plain->toNative()));
+        } else {
+            $grid = $plain->getGrid($gridCoordinates);
+            $possibleValues = $grid->getPossibleValues();
 
-        return false;
+            foreach($possibleValues as $key => $number)
+            {
+                $newLeaf = new SolutionLeaf($gridCoordinates, $number);
+                $previousLeaf->addBranch($newLeaf);
+                $grid->setValue($number);
+
+                try
+                {
+                    $this->tryFindPartialSolution($plain, $newLeaf);
+                }
+                catch(BadHypothesisException $e)
+                {
+                    continue;
+                }
+
+                $previousLeaf->removeBranch($newLeaf);
+                $grid->setValue(null);
+            }
+        }
     }
 
     /**
      * @param Plain|null $plain
-     * @return \DawidDominiak\Sudoku\App\Values\Coordinates|null
+     * @return Coordinates|null
+     * @throws BadHypothesisException
      */
     private function findCurrentlyBestLocation(Plain $plain = null)
     {
@@ -113,15 +128,20 @@ class SudokuSolver
                 if($grid->isEmpty())
                 {
                     $count = count($grid->getPossibleValues());
+                    $coordinates = new Coordinates($x, $y);
 
                     if($count === 1)
                     {
-                        return new Coordinates($x, $y);
+                        return $coordinates;
                     }
 
-                    array_push($countPossibleValues[$count], $grid);
-                }
+                    if($count === 0)
+                    {
+                        throw new BadHypothesisException('There is no good solution for founded hypothesis.');
+                    }
 
+                    array_push($countPossibleValues[$count], $coordinates);
+                }
             }
         }
 
@@ -367,13 +387,5 @@ class SudokuSolver
             }
         }
         return false;
-    }
-
-    /**
-     * @return SolutionsTree
-     */
-    public function getSolutionsTree()
-    {
-        return $this->solutionsTree;
     }
 }
