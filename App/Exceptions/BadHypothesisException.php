@@ -2,14 +2,14 @@
 /**
  * Created by PhpStorm.
  * User: dawid
- * Date: 19.11.15
- * Time: 22:22
+ * Date: 22.11.15
+ * Time: 20:22
  */
 
 namespace DawidDominiak\Sudoku\App\Exceptions;
 
 
-class NoSolutionFoundException extends SudokuException
+class BadHypothesisException extends SudokuException
 {
     public function __construct($message, $code = 0, \Exception $previous = null)
     {
