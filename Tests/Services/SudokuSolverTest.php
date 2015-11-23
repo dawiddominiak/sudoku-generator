@@ -13,11 +13,24 @@ class SudokuTest extends \PHPUnit_Framework_TestCase
      * @var SudokuSolver
      */
     private $solvableSudoku;
+    private $sudokuWithMultipleSolutions;
 
     protected function setUp()
     {
         $solvablePlain = new Plain([
-            [null, null,    4, null,    null,    5,    7, null, null],
+            [null, null,    4, null,    9,    5,    7, null, null],
+            [7   , null, null, null, null, null, null,    5, null],
+            [null, null,    5, null,    3, null,    4, null,    8],
+            [null,    3, null, null, null, null, null, null, null],
+            [null, null,    9, null, null,    1, null,    6,    3],
+            [null, null, null, null, null, null, null, null, null],
+            [null,    1, null,    6, null, null, null,    8, null],
+            [null, null,    6,    8,    7,    4, null, null, null],
+            [   4,    9, null, null,    5, null, null, null, null]
+        ]);
+
+        $sudokuWithMultipleSolutions = new Plain([
+            [null, null,    4, null, null,    5,    7, null, null],
             [7   , null, null, null, null, null, null,    5, null],
             [null, null,    5, null,    3, null,    4, null,    8],
             [null,    3, null, null, null, null, null, null, null],
@@ -29,12 +42,15 @@ class SudokuTest extends \PHPUnit_Framework_TestCase
         ]);
 
         $this->solvableSudoku = new SudokuSolver($solvablePlain);
+        $this->sudokuWithMultipleSolutions = new SudokuSolver($sudokuWithMultipleSolutions);
     }
 
     public function testFindSolutionOfSolvableSudokuShouldFindSolution()
     {
+        $algorithmSolutions = null;
+
         $algorithmSolutions = $this->solvableSudoku
-            ->findSolutions();
+            ->findSolutions(100);
 
         $algorithmSolution = $algorithmSolutions[0]
             ->toNative();
@@ -54,5 +70,14 @@ class SudokuTest extends \PHPUnit_Framework_TestCase
         $this->assertTrue(
             ArrayUtils::areMatrixEqual($algorithmSolution, $realSolution)
         );
+    }
+
+    /**
+     * @expectedException DawidDominiak\Sudoku\App\Exceptions\ManySolutionsException
+     */
+    public function testSolvingSudokuWithMultipleSolutions()
+    {
+        $algorithmSolutions = $this->sudokuWithMultipleSolutions
+            ->findSolutions(1);
     }
 }

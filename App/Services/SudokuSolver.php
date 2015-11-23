@@ -5,8 +5,6 @@ namespace DawidDominiak\Sudoku\App\Services;
 
 use DawidDominiak\Sudoku\App\Exceptions\BadHypothesisException;
 use DawidDominiak\Sudoku\App\Exceptions\ManySolutionsException;
-use DawidDominiak\Sudoku\App\Helpers\SolutionLeaf;
-use DawidDominiak\Sudoku\App\Helpers\SolutionsTree;
 use DawidDominiak\Sudoku\App\Values\Coordinates;
 use DawidDominiak\Sudoku\App\Values\Plain;
 
@@ -23,11 +21,6 @@ class SudokuSolver
     private $maxSolutionsCount;
 
     /**
-     * @var SolutionsTree
-     */
-    private $solutionsTree;
-
-    /**
      * @var array
      */
     private $solutions = [];
@@ -39,27 +32,30 @@ class SudokuSolver
     public function __construct(Plain $plain)
     {
         $this->plain = $plain;
-        $this->solutionsTree = new SolutionsTree();
     }
 
     /**
      * @param int $maxSolutionsCount
      * @return Plain
      */
-    public function findSolutions($maxSolutionsCount = 1)
+    public function findSolutions($maxSolutionsCount = 1, $plain = null)
     {
-        $plain = clone $this->plain;
-        $this->maxSolutionsCount = $maxSolutionsCount;
+        if($plain === null)
+        {
+            $plain = $this->plain;
+        }
 
+        $this->maxSolutionsCount = $maxSolutionsCount;
+        $this->solutions = [];
         //TODO: check correct
-        $this->tryFindPartialSolution($plain, $this->solutionsTree->getRoot());
+        $this->tryFindPartialSolution($plain);
 
         return $this->solutions;
     }
 
-    private function tryFindPartialSolution(Plain $plain, SolutionLeaf $previousLeaf)
+    private function tryFindPartialSolution(Plain $plain)
     {
-        $plain = $this->updateGridPossibleValues($plain, $previousLeaf);
+        $plain = $this->updateGridPossibleValues($plain);
         $gridCoordinates = $this->findCurrentlyBestLocation($plain);
 
         if(!$gridCoordinates)
@@ -76,21 +72,18 @@ class SudokuSolver
 
             foreach($possibleValues as $key => $number)
             {
-                $newLeaf = new SolutionLeaf($gridCoordinates, $number);
-                $previousLeaf->addBranch($newLeaf);
                 $grid->setValue($number);
 
                 try
                 {
-                    $this->tryFindPartialSolution($plain, $newLeaf);
+                    $this->tryFindPartialSolution($plain);
                 }
                 catch(BadHypothesisException $e)
                 {
-                    break;
+                    continue;
                 }
                 finally
                 {
-                    $previousLeaf->removeBranch($newLeaf);
                     $grid->setValue(null);
                 }
             }
@@ -154,42 +147,13 @@ class SudokuSolver
                 return $possibleValues[0];
             }
         }
-
         return null;
     }
 
-    /**
-     * @param Plain $plain
-     * @param Coordinates $coordinates
-     * @param number $number
-     * @return bool
-     */
-    public function isSafe(Plain $plain, Coordinates $coordinates, $number)
+    public static function updateGridPossibleValues(Plain $plain)
     {
-        $coordinatesArray = $coordinates->get();
-        $x = $coordinatesArray['x'];
-        $y = $coordinatesArray['y'];
 
-        return !$this->usedInRow($plain, $x, $number) &&
-            !$this->usedInColumn($plain, $y, $number) &&
-            !$this->usedInBox($plain, new Coordinates($x - $x%3, $y - $y%3), $number);
-    }
-
-    private function updateGridPossibleValues(Plain $plain, SolutionLeaf $leaf)
-    {
-        $plain = clone $plain;
-
-        if(get_class($leaf) === 'DawidDominiak\\Sudoku\\App\\Helpers\\SolutionRoot')
-        {
-            return $this->setFirstGridPossibleValues($plain);
-        }
-
-        return $this->fastUpdateGridPossibleValues($plain, $leaf);
-    }
-
-    private function setFirstGridPossibleValues(Plain $plain)
-    {
-        $plain = clone $plain;
+        $plain = new Plain($plain->toNative()); //TODO: find better cloning method
 
         $valuesInRows = [];
         $valuesInColumns = [];
@@ -197,12 +161,12 @@ class SudokuSolver
 
         for($y = 0; $y < 9; $y++)
         {
-            array_push($valuesInRows, $this->getValuesFromRow($plain, $y));
+            array_push($valuesInRows, self::getValuesFromRow($plain, $y));
         }
 
         for($x = 0; $x < 9; $x++)
         {
-            array_push($valuesInColumns, $this->getValuesFromColumn($plain, $x));
+            array_push($valuesInColumns, self::getValuesFromColumn($plain, $x));
         }
 
         for($y = 0; $y < 9; $y += 3)
@@ -211,7 +175,7 @@ class SudokuSolver
             {
                 $hash = (new Coordinates($x, $y))->__toString();
 
-                $valuesInSquares[$hash] = $this->getValuesFromSquare($plain, $x, $y);
+                $valuesInSquares[$hash] = self::getValuesFromSquare($plain, $x, $y);
             }
         }
 
@@ -242,77 +206,31 @@ class SudokuSolver
         return $plain;
     }
 
-    private function fastUpdateGridPossibleValues(Plain $plain, SolutionLeaf $leaf)
-    {
-        $plain = clone $plain;
-        $coordinates = $leaf->getCoordinates();
-        $nativeCoordinates = $coordinates->get();
-        $value = $leaf->getValue();
-
-        $currentX = $nativeCoordinates['x'];
-        $currentY = $nativeCoordinates['y'];
-
-        for($x = 0; $x < 9; $x++)
-        {
-            $grid = $plain->getGrid(
-                new Coordinates($x, $currentY)
-            );
-
-            $grid->removePossibleValues([$value]);
-        }
-
-        for($y = 0; $y < 9; $y++)
-        {
-            $grid = $plain->getGrid(
-                new Coordinates($currentX, $y)
-            );
-
-            $grid->removePossibleValues([$value]);
-        }
-
-        $squareX = $currentX - $currentX%3;
-        $squareY = $currentY - $currentY%3;
-
-        for($x = $squareX; $x < $squareX + 3; $x++)
-        {
-            for($y = $squareY; $y < $squareY + 3; $y++)
-            {
-                $grid = $plain->getGrid(
-                    new Coordinates($x, $y)
-                );
-
-                $grid->removePossibleValues([$value]);
-            }
-        }
-
-        return $plain;
-    }
-
-    private function getValuesFromRow(Plain $plain, $y)
+    private static function getValuesFromRow(Plain $plain, $y)
     {
         $values = [];
 
         for($x = 0; $x < 9; $x++)
         {
-            $this->pushValueEventually($values, $plain, new Coordinates($x, $y));
+            self::pushValueEventually($values, $plain, new Coordinates($x, $y));
         }
 
         return $values;
     }
 
-    private function getValuesFromColumn(Plain $plain, $x)
+    private static function getValuesFromColumn(Plain $plain, $x)
     {
         $values = [];
 
         for($y = 0; $y < 9; $y++)
         {
-            $this->pushValueEventually($values, $plain, new Coordinates($x, $y));
+            self::pushValueEventually($values, $plain, new Coordinates($x, $y));
         }
 
         return $values;
     }
 
-    private function getValuesFromSquare(Plain $plain, $startX, $startY)
+    private static function getValuesFromSquare(Plain $plain, $startX, $startY)
     {
         $values = [];
 
@@ -320,14 +238,14 @@ class SudokuSolver
         {
             for($x = $startX; $x < $startX + 3; $x++)
             {
-                $this->pushValueEventually($values, $plain, new Coordinates($x, $y));
+                self::pushValueEventually($values, $plain, new Coordinates($x, $y));
             }
         }
 
         return $values;
     }
 
-    private function pushValueEventually(&$valuesArray, Plain $plain, Coordinates $coordinates)
+    private static function pushValueEventually(&$valuesArray, Plain $plain, Coordinates $coordinates)
     {
         $currentGrid = $plain
             ->getGrid($coordinates)
@@ -339,55 +257,8 @@ class SudokuSolver
         }
     }
 
-    private function usedInRow(Plain $plain, $x, $number)
+    public function getFoundSolutions()
     {
-        for($y = 0; $y < 9; $y++)
-        {
-            if($plain
-                    ->getGrid(new Coordinates($x, $y))
-                    ->getValue() === $number)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private function usedInColumn(Plain $plain, $y, $number)
-    {
-        for($x = 0; $x < 9; $x++)
-        {
-            if($plain
-                    ->getGrid(new Coordinates($x, $y))
-                    ->getValue() == $number)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private function usedInBox(Plain $plain, Coordinates $boxStartCoordinates, $number)
-    {
-        $coordinates = $boxStartCoordinates->get();
-
-        for($x = 0; $x < 3; $x++)
-        {
-            for($y = 0; $y < 3; $y++)
-            {
-                if($plain
-                        ->getGrid(
-                            new Coordinates(
-                                $x + $coordinates['x'],
-                                $y + $coordinates['y']
-                            )
-                        )
-                        ->getValue() === $number)
-                {
-                    return true;
-                }
-            }
-        }
-        return false;
+        return $this->solutions;
     }
 }

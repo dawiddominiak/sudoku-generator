@@ -9,7 +9,9 @@
 namespace DawidDominiak\Sudoku\App\Values;
 
 
-class Plain
+use DawidDominiak\Sudoku\App\Helpers\EquatableInterface;
+
+class Plain implements EquatableInterface
 {
     private $array;
 
@@ -27,7 +29,7 @@ class Plain
     {
         $emptyArray = array_fill(0, 9, null);
 
-        array_map(function() {
+        $emptyArray = array_map(function() {
 
             return array_fill(0, 9, null);
         }, $emptyArray);
@@ -37,13 +39,13 @@ class Plain
 
     private function initializeArray($nativeArray)
     {
-        foreach($nativeArray as $x => $row)
+        foreach($nativeArray as $y => $row)
         {
-            $this->array[$x] = [];
+            $this->array[$y] = [];
 
-            foreach($row as $y => $value)
+            foreach($row as $x => $value)
             {
-                $this->array[$x][$y] = new Grid($value);
+                $this->array[$y][$x] = new Grid($value);
             }
         }
     }
@@ -58,7 +60,7 @@ class Plain
         $x = $nativeArray['x'];
         $y = $nativeArray['y'];
 
-        return $this->array[$x][$y];
+        return $this->array[$y][$x];
     }
 
     public function toNative()
@@ -76,5 +78,32 @@ class Plain
         }
 
         return $native;
+    }
+
+    public function __clone()
+    {
+        $this->array = (new \ArrayObject($this->array))->getArrayCopy();
+    }
+
+    /**
+     * @param Plain $other
+     * @return bool
+     */
+    public function equals($other)
+    {
+        for($x = 0; $x < 9; $x++)
+        {
+            for($y = 0; $y < 9; $y++)
+            {
+                $coordinates = new Coordinates($x, $y);
+
+                if($this->getGrid($coordinates) !== $other->getGrid($coordinates))
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 }
